@@ -1,0 +1,194 @@
+<!--
+   it is for to test...
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+	<title>test</title>
+	<meta http-equiv="content-type" content="text/html;charset=utf-8" />
+	<meta name="generator" content="Geany 1.24.1" />
+</head>
+
+<body>
+	<h1>Testing, testing...</h1>
+	<script src="/socket.io/socket.io.js"></script>
+	<script type="text/javascript">
+		var socket = io();
+		socket.on('testSound', function(msg){
+			//console.log("client's secret message is " + msg);
+			//alert("testing sound!");
+			// create Oscillator node
+			oscillator = audioCtx.createOscillator();
+
+			oscillator.type = 'square';
+			oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // value in hertz
+			oscillator.connect(audioCtx.destination);
+			oscillator.start();
+		});
+		socket.on('testSoundStop', function(msg){
+			//console.log("client's secret message is " + msg);
+			//alert("testing sound!");
+			// create Oscillator node
+			oscillator.stop();
+		});
+socket.on('control message', function(msg){
+	console.log("control message received: " + msg);
+	if (msg != "panic") {
+		var msgArray = msg.split('/');
+		var lastPart = msgArray[msgArray.length-1].split(' ');
+		if (msgArray.length >= 2) {
+			if (lastPart[0] == 'command' && lastPart.length >= 2) {
+				//kind of horrible idea for testing, simulating multiple devices to hear average timings...
+				for (var i = 0; i < 1; i++) {
+					//10 is the radix for decimal
+					commandReceived(parseInt(lastPart[1], 10));
+				}
+			} else if (msgArray[msgArray.length-2] == 'slider' && lastPart.length >= 2) {
+				var sliderIntValue = parseInt(lastPart[1], 10);
+				var sliderFloatValue = parseFloat(lastPart[1], 10);
+				switch (parseInt(lastPart[0], 10)) {
+					case 0:
+						console.log('slider 0 value: ' + sliderFloatValue);
+						//minVol = sliderFloatValue;
+						course2minVol = sliderFloatValue;
+						
+						break;
+					case 1:
+						console.log('slider 1 value: ' + sliderFloatValue);
+						course2maxVol = sliderFloatValue;
+						break;
+					case 2:
+						console.log('slider 2 value: ' + sliderFloatValue);
+						//minReps
+						course2minReps = sliderFloatValue;
+						break;
+					case 3:
+						console.log('slider 3 value: ' + sliderFloatValue);
+						//maxReps
+						course2maxReps = sliderFloatValue;
+						break;
+					case 4:
+						console.log('slider 4 value: ' + sliderFloatValue);
+						//minPause
+						course2minPause = sliderFloatValue;
+						break;
+					case 5:
+						console.log('slider 5 value: ' + sliderFloatValue);
+						//maxPause
+						course2maxPause = sliderFloatValue;
+						break;
+					case 6:
+						console.log('slider 6 value: ' + sliderFloatValue);
+						//transposition
+						course2Transposition = sliderFloatValue;
+						break;
+					case 7:
+						console.log('slider 7 value: ' + sliderIntValue);
+						//maxChirps = sliderIntValue;
+						break;
+					default:
+						console.log('Not a valid slider.');
+						break;
+				}
+			} else if (msgArray[msgArray.length-2] == 'button' && lastPart.length >= 2) {
+				console.log('Hopefully another part of the program is parsing that button.');
+			} else {
+				console.log('Perhaps you have a malformed command message on your hands.');
+			}
+		}
+	} else {
+		//this is where you implement panic mode
+		stopEverything();
+	}
+});
+socket.on('get type', function(msg){
+	//console.log("client's secret message is " + msg);
+	socket.emit('i am', "listener");
+});
+socket.on('sending audio', function(msg){
+	console.log('this many audio files to receive: ' + msg);
+	//alert('this many audio files: ' + msg);
+	audioFilesToReceive = msg;
+});
+socket.on('button states', function(msg){
+	//console.log('button states: ' + msg);
+	//alert('this many audio files: ' + msg);
+	buttonStates = msg;
+	if (buffersAreLoaded) {
+		for (button in buttonStates) {
+			console.log('key: ' + button + '; value: ' + buttonStates[button]);
+			var id = parseInt(button[button.length-1], 10);
+			console.log('id: ' + id);
+			switch(id) {
+			case 1:
+				course1Button.disabled = !buttonStates['button' + id];
+				break;
+			case 2:
+				//course2Button.disabled = !buttonStates['button' + id];
+				break;
+			case 3:
+				//course3Button.disabled = !buttonStates['button' + id];
+				//course4Button.disabled = !buttonStates['button' + id];
+				//course5Button.disabled = !buttonStates['button' + id];
+				break;
+			case 4:
+				testButton.disabled = !buttonStates['button' + id];
+				break;
+			}
+		} 
+	}
+});
+socket.on('audio', function(msg){
+    console.log('audio received!');
+    audioCtx.decodeAudioData(msg.buffer, function(buffer) {
+    	audioBuffers[msg.index] = buffer;
+    	console.log('buffer ' + msg.index + ' loaded');
+    	audioFilesToReceive--;
+    	if (audioFilesToReceive <= 0) {
+    		console.log('all buffers loaded');
+    		//quick spot check
+    		//playBuffer('windchimes');
+    		buffersAreLoaded = true;
+    		initializeInstruments();
+    		for (var i = 0; i < numberOfButtons; i++) {
+    			var courseButton = document.getElementById('course' + (i + 1));
+    			//courseButton.innerHTML = 'LISTEN';
+    			var buttonID;
+    			switch (i) {
+    			case 0:
+    				buttonID = 1;
+    				break;
+    			case 1:
+    				buttonID = 2;
+    				break;
+    			case 2:
+    			case 3:
+    			case 4:
+    				buttonID = 3;
+    				break;
+    			}
+    			courseButton.disabled = !buttonStates['button' + buttonID];
+    		}
+    		testButton = document.getElementById('testButton');
+    		testButton.disabled = !buttonStates['button4'];
+    	}
+      }, 
+      function(error) {
+          console.error('decodeAudioData error', error);
+      });
+});
+
+// create web audio api context
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+var oscillator;
+
+
+
+	</script>
+</body>
+
+</html>

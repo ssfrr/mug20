@@ -1,0 +1,28 @@
+{
+  "name": "mug20",
+  "version": "0.0.1",
+  "description": "Mugaritz 20th birthday bash",
+  "main": "index_pi.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bhouge/mug20.git"
+  },
+  "keywords": [
+    "audiogustatory"
+  ],
+  "author": "bhouge",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bhouge/mug20/issues"
+  },
+  "homepage": "https://github.com/bhouge/mug20#readme",
+  "dependencies": {
+    "express": "^4.16.2",
+    "onoff": "^1.2.0",
+    "socket.io": "^2.0.4",
+    "socket.io-client": "^2.0.4"
+  }
+}
