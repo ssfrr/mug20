@@ -6,10 +6,22 @@ app.get('/', function(req, res){
 	res.sendFile(__dirname + '/index.html');
 });
 
+//Connect to server
+var remoteServer = require('socket.io-client')('http://mug20.gustatory.audio:3100');
+remoteServer.on('connect', function(){
+	console.log('connected to remote server at port 3100.');
+});
+//remoteServer.on('event', function(data){});
+remoteServer.on('control message', function(msg){
+	  console.log('new root note: ' + msg);
+});
+//remoteServer.on('disconnect', function(){});
+
 io.on('connection', function(socket){
 	console.log('a user connected');
 });
 
+console.log('pretend I am a Raspberry Pi.');
 http.listen(3000, function(){
 	console.log('listening on *:3000');
 });
