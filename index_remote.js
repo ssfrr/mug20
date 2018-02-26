@@ -34,7 +34,7 @@ timerID = setTimeout(pickNextChord, timeToNextChord);
 
 function pickNextChord() {
 	var rootNote = notes[notesIndex];
-    emitControlMessage('/command ' + rootNote);
+    emitControlMessage(rootNote);
     console.log('current root note: ' + rootNote);
     notesIndex++;
     if (notesIndex >= notes.length) {
