@@ -6,6 +6,8 @@ app.get('/', function(req, res){
 	res.sendFile(__dirname + '/index.html');
 });
 
+var rootNote = 60;
+
 //Connect to server
 var remoteServer = require('socket.io-client')('http://mug20.gustatory.audio:3100');
 remoteServer.on('connect', function(){
@@ -13,7 +15,8 @@ remoteServer.on('connect', function(){
 });
 //remoteServer.on('event', function(data){});
 remoteServer.on('control message', function(msg){
-	  console.log('new root note: ' + msg);
+	rootNote = msg;
+	console.log('new root note: ' + msg);
 });
 //remoteServer.on('disconnect', function(){});
 
@@ -32,15 +35,18 @@ var GPIO = require('onoff').Gpio,
 	led = new GPIO(18, 'out'),
 	led2 = new GPIO(23, 'out');
 	
+var buttonIsOn = false;
 button.watch(function(err, state) {
 	console.log("err is " + err);
 	console.log("state is " + state);
-	if(state == 1) {
+	if(state == 1 && !buttonIsOn) {
 		console.log("button pressed!");
-		io.emit('testSound');
+		io.emit('testSound', rootNote);
+		buttonIsOn = true;
 	} else {
 		console.log("button released!");
 		io.emit('testSoundStop');
+		buttonIsOn = false;
 	}
 });
 

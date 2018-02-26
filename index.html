@@ -16,17 +16,25 @@
 	<h1>Testing, testing...</h1>
 	<script src="/socket.io/socket.io.js"></script>
 	<script type="text/javascript">
+		var rootNote = 60;
 		var socket = io();
 		socket.on('testSound', function(msg){
-			//console.log("client's secret message is " + msg);
+			console.log("client's secret message is " + msg);
+			rootNote = parseInt(msg, 10);
+			//alert('msg: ' + msg + '; rootNote: ' + rootNote + '; newNote: ' + newNote + '; frequency: ' + newFreq);
+			var majorChord = [0, 4, 7];
+			var chordIndex = Math.floor(Math.random() * 3);
+			var newNote = rootNote + majorChord[chordIndex];
+			var newFreq = midiToFreq(newNote);
 			//alert("testing sound!");
 			// create Oscillator node
 			oscillator = audioCtx.createOscillator();
 
 			oscillator.type = 'square';
-			oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // value in hertz
+			oscillator.frequency.setValueAtTime(newFreq, audioCtx.currentTime); // value in hertz
 			oscillator.connect(audioCtx.destination);
 			oscillator.start();
+			//alert('rootNote: ' + rootNote + '; newNote: ' + newNote + '; frequency: ' + newFreq);
 		});
 		socket.on('testSoundStop', function(msg){
 			//console.log("client's secret message is " + msg);
@@ -185,6 +193,10 @@ socket.on('audio', function(msg){
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 var oscillator;
+
+function midiToFreq(midiNote) {
+	return 440.0 * Math.pow(2, (midiNote-69.0)/12.0);
+}
 
 
 
