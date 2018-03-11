@@ -1,25 +1,45 @@
 <!--
-   it is for to test...
+   Beautiful music on a Raspberry Pi...
 -->
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!doctype html>
+<html>
 
 <head>
-	<title>test</title>
+	<title>Music, Professor!</title>
 	<meta http-equiv="content-type" content="text/html;charset=utf-8" />
 	<meta name="generator" content="Geany 1.24.1" />
 </head>
 
 <body>
-	<h1>Testing, testing...</h1>
+	<h1>Beautiful music on a Raspberry Pi...</h1>
+	Use these buttons to simulate hardware state changes...
+	<div id="testButtons">
+		<button id="lidButton" value="off">lid is off</button>
+		<button id="foodButton" value="off">food is not touched</button>
+	</div>
+	<div id="arpeggio">arpeggio index:</div>
 	<script src="/socket.io/socket.io.js"></script>
+	<script src="scripts/MIDIInstrument.js"></script>
 	<script type="text/javascript">
 		var rootNote = 60;
+		var audioFilesToReceive = 0;
+		var click;
+		var piano1;
+		var piano2;
+		var piano3;
+		var timerID;
+		var audioBuffers = {};
+		var buffersAreLoaded = false;
+		var foodHasBeenTouched = false;
+		var timingOffset = 0;
+		var bpm = 120;
+		var msPerBeat = 60000.0 / bpm; 
+		
 		var socket = io();
 		socket.on('testSound', function(msg){
-			console.log("client's secret message is " + msg);
+			//rewrite this whole thing...
+			console.log("root note is " + msg);
 			rootNote = parseInt(msg, 10);
 			//alert('msg: ' + msg + '; rootNote: ' + rootNote + '; newNote: ' + newNote + '; frequency: ' + newFreq);
 			var majorChord = [0, 4, 7];
@@ -27,179 +47,201 @@
 			var newNote = rootNote + majorChord[chordIndex];
 			var newFreq = midiToFreq(newNote);
 			//alert("testing sound!");
-			// create Oscillator node
-			oscillator = audioCtx.createOscillator();
-
-			oscillator.type = 'square';
-			oscillator.frequency.setValueAtTime(newFreq, audioCtx.currentTime); // value in hertz
-			oscillator.connect(audioCtx.destination);
-			oscillator.start();
+			
 			//alert('rootNote: ' + rootNote + '; newNote: ' + newNote + '; frequency: ' + newFreq);
+			
+			//instrument.playNote(startTime, noteToPlay, volume, duration, offset);
+			//note that offset is time into the sample at which to start reading
+			piano1.playNote(0, 72, 1.0, 1.0, 0.);
 		});
 		socket.on('testSoundStop', function(msg){
-			//console.log("client's secret message is " + msg);
-			//alert("testing sound!");
-			// create Oscillator node
-			oscillator.stop();
+			//used to turn off oscillator that no longer gets created...
+			//rewrite this to turn arpeggio on/off
 		});
-socket.on('control message', function(msg){
-	console.log("control message received: " + msg);
-	if (msg != "panic") {
-		var msgArray = msg.split('/');
-		var lastPart = msgArray[msgArray.length-1].split(' ');
-		if (msgArray.length >= 2) {
-			if (lastPart[0] == 'command' && lastPart.length >= 2) {
-				//kind of horrible idea for testing, simulating multiple devices to hear average timings...
-				for (var i = 0; i < 1; i++) {
-					//10 is the radix for decimal
-					commandReceived(parseInt(lastPart[1], 10));
+		socket.on('get type', function(msg){
+			socket.emit('i am', "listener");
+		});
+		socket.on('sending audio', function(msg){
+			console.log('this many audio files to receive: ' + msg);
+			//alert('this many audio files: ' + msg);
+			audioFilesToReceive = msg;
+		});
+		socket.on('audio', function(msg){
+		    console.log('audio received!');
+		    audioCtx.decodeAudioData(msg.buffer, function(buffer) {
+		    	audioBuffers[msg.index] = buffer;
+		    	console.log('buffer ' + msg.index + ' loaded');
+		    	audioFilesToReceive--;
+		    	if (audioFilesToReceive <= 0) {
+		    		console.log('all buffers loaded');
+		    		//quick spot check
+		    		//playBuffer('windchimes');
+		    		buffersAreLoaded = true;
+		    		initializeInstruments();
+		    	}
+		      }, 
+		      function(error) {
+		          console.error('decodeAudioData error', error);
+		      });
+		});
+		
+		var lidButton = document.getElementById('lidButton');
+		var foodButton = document.getElementById('foodButton');
+		
+		lidButton.onclick = function() {
+			if (lidButton.value == 'off') {
+				lidButton.value = 'on';
+				lidButton.innerHTML = 'lid is on'; 
+				
+				//I mean, you can't be touching the food if the lid is on, right?
+				if (foodButton.value == 'on') {
+					foodButton.value = 'off';
+					foodButton.innerHTML = 'food is not touched';
 				}
-			} else if (msgArray[msgArray.length-2] == 'slider' && lastPart.length >= 2) {
-				var sliderIntValue = parseInt(lastPart[1], 10);
-				var sliderFloatValue = parseFloat(lastPart[1], 10);
-				switch (parseInt(lastPart[0], 10)) {
-					case 0:
-						console.log('slider 0 value: ' + sliderFloatValue);
-						//minVol = sliderFloatValue;
-						course2minVol = sliderFloatValue;
-						
-						break;
-					case 1:
-						console.log('slider 1 value: ' + sliderFloatValue);
-						course2maxVol = sliderFloatValue;
-						break;
-					case 2:
-						console.log('slider 2 value: ' + sliderFloatValue);
-						//minReps
-						course2minReps = sliderFloatValue;
-						break;
-					case 3:
-						console.log('slider 3 value: ' + sliderFloatValue);
-						//maxReps
-						course2maxReps = sliderFloatValue;
-						break;
-					case 4:
-						console.log('slider 4 value: ' + sliderFloatValue);
-						//minPause
-						course2minPause = sliderFloatValue;
-						break;
-					case 5:
-						console.log('slider 5 value: ' + sliderFloatValue);
-						//maxPause
-						course2maxPause = sliderFloatValue;
-						break;
-					case 6:
-						console.log('slider 6 value: ' + sliderFloatValue);
-						//transposition
-						course2Transposition = sliderFloatValue;
-						break;
-					case 7:
-						console.log('slider 7 value: ' + sliderIntValue);
-						//maxChirps = sliderIntValue;
-						break;
-					default:
-						console.log('Not a valid slider.');
-						break;
-				}
-			} else if (msgArray[msgArray.length-2] == 'button' && lastPart.length >= 2) {
-				console.log('Hopefully another part of the program is parsing that button.');
+				
+				foodHasBeenTouched = false;
+				window.clearTimeout(timerID);
 			} else {
-				console.log('Perhaps you have a malformed command message on your hands.');
+				lidButton.value = 'off';
+				lidButton.innerHTML = 'lid is off';
+				var msSinceEpoch = Date.now();
+				var msIntoCurrentBeat = msSinceEpoch % msPerBeat;
+				var timeToNextBeat = msPerBeat - msIntoCurrentBeat;
+				timerID = window.setTimeout(playNextNote, timeToNextBeat);
 			}
 		}
-	} else {
-		//this is where you implement panic mode
-		stopEverything();
-	}
-});
-socket.on('get type', function(msg){
-	//console.log("client's secret message is " + msg);
-	socket.emit('i am', "listener");
-});
-socket.on('sending audio', function(msg){
-	console.log('this many audio files to receive: ' + msg);
-	//alert('this many audio files: ' + msg);
-	audioFilesToReceive = msg;
-});
-socket.on('button states', function(msg){
-	//console.log('button states: ' + msg);
-	//alert('this many audio files: ' + msg);
-	buttonStates = msg;
-	if (buffersAreLoaded) {
-		for (button in buttonStates) {
-			console.log('key: ' + button + '; value: ' + buttonStates[button]);
-			var id = parseInt(button[button.length-1], 10);
-			console.log('id: ' + id);
-			switch(id) {
-			case 1:
-				course1Button.disabled = !buttonStates['button' + id];
-				break;
-			case 2:
-				//course2Button.disabled = !buttonStates['button' + id];
-				break;
-			case 3:
-				//course3Button.disabled = !buttonStates['button' + id];
-				//course4Button.disabled = !buttonStates['button' + id];
-				//course5Button.disabled = !buttonStates['button' + id];
-				break;
-			case 4:
-				testButton.disabled = !buttonStates['button' + id];
-				break;
+		
+		foodButton.onclick = function() {
+			if (foodButton.value == 'off' && lidButton.value == 'off') {
+				//you can't touch it if the lid is on!
+				foodButton.value = 'on';
+				foodButton.innerHTML = 'food is touched'; 
+				foodHasBeenTouched = true;
+				voice1.playNote(0, 48, 2.0, 1.0, 0.);
+			} else {
+				foodButton.value = 'off';
+				foodButton.innerHTML = 'food is not touched';
 			}
-		} 
-	}
-});
-socket.on('audio', function(msg){
-    console.log('audio received!');
-    audioCtx.decodeAudioData(msg.buffer, function(buffer) {
-    	audioBuffers[msg.index] = buffer;
-    	console.log('buffer ' + msg.index + ' loaded');
-    	audioFilesToReceive--;
-    	if (audioFilesToReceive <= 0) {
-    		console.log('all buffers loaded');
-    		//quick spot check
-    		//playBuffer('windchimes');
-    		buffersAreLoaded = true;
-    		initializeInstruments();
-    		for (var i = 0; i < numberOfButtons; i++) {
-    			var courseButton = document.getElementById('course' + (i + 1));
-    			//courseButton.innerHTML = 'LISTEN';
-    			var buttonID;
-    			switch (i) {
-    			case 0:
-    				buttonID = 1;
-    				break;
-    			case 1:
-    				buttonID = 2;
-    				break;
-    			case 2:
-    			case 3:
-    			case 4:
-    				buttonID = 3;
-    				break;
-    			}
-    			courseButton.disabled = !buttonStates['button' + buttonID];
-    		}
-    		testButton = document.getElementById('testButton');
-    		testButton.disabled = !buttonStates['button4'];
-    	}
-      }, 
-      function(error) {
-          console.error('decodeAudioData error', error);
-      });
-});
+		}
+		
+		//shouldn't need this anymore once you rewrite the test sound handlers...
+		function midiToFreq(midiNote) {
+			return 440.0 * Math.pow(2, (midiNote-69.0)/12.0);
+		}
+		
+		//keeping this as a way to test sounds if needed
+		function playBuffer(index) {
+			var source = audioCtx.createBufferSource();
+			source.buffer = audioBuffers[index];
+			gainNode.gain.value = 1.0;
+			source.connect(gainNode);
+		  source.start(audioCtx.currentTime);
+		}
+		
+		function initializeInstruments() {
+			//can't remember how we handle percussion sounds
+			//maybe base frequency is ignored and I specify a playback note that's negative 
+			//or something like that
+			//seems there's nothing in place for this, so think about what would be ideal
+			//0 plays at original pitch, then semitones from there?
+			//can I just specify as original pitch, then?
+			//no, because MIDI note 0 is not a frequency of 0
+			//but easy enough to do a check; if base freq is zero, then do offsets from that pitch
+			//ok, I think that's how it works now. But test it!
+			click = new MIDIInstrument(audioBuffers.click, 0, 0.0, 0.1);
+			//click.retuningMap = leadingToneTuning;
+			//click.basePitchForRetuning = 0;
+			click.connect(gainNode);
 
-// create web audio api context
-var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-var oscillator;
-
-function midiToFreq(midiNote) {
-	return 440.0 * Math.pow(2, (midiNote-69.0)/12.0);
-}
-
-
-
+			//baseFreq 523.251131 Hz is MIDI note 72 (C above middle C)
+			piano1 = new MIDIInstrument(audioBuffers.piano1, 523.251131, 0.0, 0.1);
+			//piano.retuningMap = leadingToneTuning;
+			//piano1.basePitchForRetuning = 0;
+			piano1.connect(gainNode);
+			
+			//baseFreq 523.251131 Hz is MIDI note 72 (C above middle C)
+			piano2 = new MIDIInstrument(audioBuffers.piano2, 523.251131, 0.0, 0.1);
+			//piano.retuningMap = leadingToneTuning;
+			//piano1.basePitchForRetuning = 0;
+			piano2.connect(gainNode);
+			
+			//baseFreq 523.251131 Hz is MIDI note 72 (C above middle C)
+			piano3 = new MIDIInstrument(audioBuffers.piano3, 523.251131, 0.0, 0.1);
+			//piano.retuningMap = leadingToneTuning;
+			//piano1.basePitchForRetuning = 0;
+			piano3.connect(gainNode);
+			
+			//baseFreq 130.81278275 Hz is MIDI note 48 (C below middle C)
+			voice1 = new MIDIInstrument(audioBuffers.voice1, 130.81278275, 0.0, 0.5);
+			//piano.retuningMap = leadingToneTuning;
+			//piano1.basePitchForRetuning = 0;
+			voice1.connect(gainNode);
+			
+			//for testing only!
+			//or actually, maybe not...250 will be replaced by time to next beat...
+			var msSinceEpoch = Date.now();
+			var msIntoCurrentBeat = msSinceEpoch % msPerBeat;
+			var timeToNextBeat = msPerBeat - msIntoCurrentBeat;
+			timerID = window.setTimeout(playNextNote, timeToNextBeat);
+		}
+		
+		var arpeggioIndex = 0;
+		var arpeggioAscending = true;
+		var majorChord = [0, 4, 7];
+		
+		function playNextNote() {
+			var arpLog = document.getElementById("arpeggio");
+			//arpLog.innerHTML = 'arpeggioIndex: ' + arpeggioIndex;
+			var arpeggioScaleDegree = arpeggioIndex % 3;
+			var arpeggioOctave = Math.floor(arpeggioIndex / 3);
+			var noteToPlay = majorChord[arpeggioScaleDegree] + rootNote + (12 * arpeggioOctave);
+			//randomize which sample you're playing
+			//in the future, imagine an MIDI instrument that has a buffer of samples that it shuffles through
+			//these should have weightings and each should have its own baseFreq
+			//and you can have a min samples before repeat flag to avoid duplicates
+			//sure, and then have mapping across the keyboard and across different velocities
+			//that's for later
+			arpLog.innerHTML = 'arpeggioIndex: ' + arpeggioIndex + '; noteToPlay: ' + noteToPlay + '; arpeggioOctave: ' + arpeggioOctave;
+			
+			if (foodHasBeenTouched) {
+				voice1.playNote(0, noteToPlay, 4.0, 1.0, 0.);
+			} else {
+				var whichPiano = Math.floor(Math.random() * 3.);
+				switch (whichPiano) {
+				case 0:
+					//alert('piano1');
+					piano1.playNote(0, noteToPlay, 1.0, 1.0, 0.);
+					break;
+				case 1:
+					//alert('piano2');
+					piano2.playNote(0, noteToPlay, 1.0, 1.0, 0.);
+					break;
+				case 2:
+					//alert('piano3');
+					piano3.playNote(0, noteToPlay, 1.0, 1.0, 0.);
+					break;
+				}
+			}
+			
+			if (arpeggioAscending) {
+				arpeggioIndex++;
+			} else {
+				arpeggioIndex--;
+			}
+			if (arpeggioIndex >= 12 || arpeggioIndex <= 0){
+				arpeggioAscending = !arpeggioAscending;
+			}
+			
+			timerID = window.setTimeout(playNextNote, 250);
+		}
+		
+		// create web audio api context
+		var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+		
+		var gainNode = audioCtx.createGain();
+		gainNode.gain.value = 1.0;
+		gainNode.connect(audioCtx.destination);
+		
 	</script>
 </body>
 
