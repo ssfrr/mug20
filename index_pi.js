@@ -30,8 +30,10 @@ app.get(/^(.*)$/, function(req, res){
 });
 
 var rootNote = 60;
-var lastFewTimeStamps = [];
+var lastFewLatencies = [];
 var timeStampIndex = 0;
+var averageLatency;
+var differenceFromRemoteServerTime;
 
 //Connect to remote server
 var remoteServer = require('socket.io-client')('http://mug20.gustatory.audio:3100');
@@ -46,17 +48,26 @@ remoteServer.on('control message', function(msg){
 });
 remoteServer.on('server time', function(msg){
 	var timeStamp = JSON.parse(msg);
-	console.log('originalTime: ' + timeStamp.originalTime + '; serverTime: ' + timeStamp.serverTime);
+	var currentTime = Date.now();
+	console.log('originalTime: ' + timeStamp.originalTime + '; serverTime: ' + timeStamp.serverTime + '; currentTime: ' + currentTime);
 	var latency = (timeStamp.serverTime - timeStamp.originalTime) / 2.0;
-	console.log('local time is ' + latency + 'behind server time');
-	lastFewTimeStamps[timeStampIndex] = latency;
-	console.log('lastFewTimeStamps: ' + lastFewTimeStamps);
-	var averageDifference = 0;
-	for (var i = 0; i < lastFewTimeStamps.length; i++) {
-		averageDifference += lastFewTimeStamps[i];
+	console.log('latency: ' + latency);
+	//console.log('local time is ' + latency + 'behind server time');
+	lastFewLatencies[timeStampIndex] = latency;
+	timeStampIndex++;
+	if (timeStampIndex >= 6) {
+		timeStampIndex = 0;
 	}
-	averageDifference = averageDifference / lastFewTimeStamps.length;
-	console.log('average difference: ' + averageDifference);
+	console.log('lastFewTimeStamps: ' + lastFewLatencies);
+	var average = 0;
+	for (var i = 0; i < lastFewLatencies.length; i++) {
+		average += lastFewLatencies[i];
+	}
+	average /= lastFewTimeStamps.length;
+	averageLatency = average;
+	console.log('average latency: ' + averageLatency);
+	differenceFromRemoteServerTime = timeStamp.serverTime + averageLatency - currentTime;
+	console.log('currentRemoteServerTime: ' + currentTime + differenceFromRemoteServerTime);
 });
 remoteServer.on('disconnect', function(){
 	console.log('disconnected from remote server.');
