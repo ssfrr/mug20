@@ -30,48 +30,84 @@ app.get(/^(.*)$/, function(req, res){
 });
 
 var rootNote = 60;
-var lastFewLatencies = [];
 var timeStampIndex = 0;
+var lastFewLatencies = [];
 var averageLatency;
-var differenceFromRemoteServerTime;
+var lastFewDifferences = [];
+var averageDifference;
+//var differenceFromRemoteServerTime;
 
 //Connect to remote server
 var remoteServer = require('socket.io-client')('http://mug20.gustatory.audio:3100');
 remoteServer.on('connect', function(){
 	console.log('connected to remote server at port 3100.');
+	updateLatencyCalculations();
+	/*
 	var localTime = Date.now();
 	remoteServer.emit('get time', localTime);
+	*/
 });
 remoteServer.on('control message', function(msg){
 	rootNote = msg;
-	console.log('new root note: ' + msg);
+	//console.log('new root note: ' + msg);
 });
 remoteServer.on('server time', function(msg){
 	var timeStamp = JSON.parse(msg);
 	var currentTime = Date.now();
-	console.log('originalTime: ' + timeStamp.originalTime + '; serverTime: ' + timeStamp.serverTime + '; currentTime: ' + currentTime);
-	var latency = (timeStamp.serverTime - timeStamp.originalTime) / 2.0;
-	console.log('latency: ' + latency);
+	//console.log('originalTime: ' + timeStamp.originalTime + '; serverTime: ' + timeStamp.serverTime + '; currentTime: ' + currentTime);
+	var latency = (currentTime - timeStamp.originalTime) / 2.0;
+	//console.log('round trip time: ' + (currentTime - timeStamp.originalTime) + '; latency: ' + latency);
 	//console.log('local time is ' + latency + 'behind server time');
+	
 	lastFewLatencies[timeStampIndex] = latency;
+	//console.log('lastFewlatencies: ' + lastFewLatencies);
+	var averageL = 0;
+	for (var i = 0; i < lastFewLatencies.length; i++) {
+		averageL += lastFewLatencies[i];
+	}
+	averageL /= lastFewLatencies.length;
+	averageLatency = averageL;
+	
+	//big question: use averageLatency or latency here? I vote averageLatency!
+	var difference = timeStamp.serverTime + averageLatency - currentTime;
+	lastFewDifferences[timeStampIndex] = difference;
+
+	var averageD = 0;
+	for (var i = 0; i < lastFewDifferences.length; i++) {
+		averageD += lastFewDifferences[i];
+	}
+	averageD /= lastFewDifferences.length;
+	averageDifference = averageD;
+	
+	console.log('lastFewLatencies: ' + lastFewLatencies + '; average latency: ' + averageLatency);
+	console.log('lastFewDifferences: ' + lastFewDifferences + '; average difference: ' + averageDifference);
+	
+	//send it to index.html and store it there and use it as the basis for your timing calculations
+	
 	timeStampIndex++;
-	if (timeStampIndex >= 6) {
+	if (timeStampIndex >= 10) {
 		timeStampIndex = 0;
 	}
-	console.log('lastFewTimeStamps: ' + lastFewLatencies);
-	var average = 0;
-	for (var i = 0; i < lastFewLatencies.length; i++) {
-		average += lastFewLatencies[i];
-	}
-	average /= lastFewTimeStamps.length;
-	averageLatency = average;
-	console.log('average latency: ' + averageLatency);
-	differenceFromRemoteServerTime = timeStamp.serverTime + averageLatency - currentTime;
-	console.log('currentRemoteServerTime: ' + currentTime + differenceFromRemoteServerTime);
+	
+	//differenceFromRemoteServerTime = timeStamp.serverTime + latency - currentTime;
+	//console.log('differenceFromRemoteServerTime: ' + differenceFromRemoteServerTime);
 });
 remoteServer.on('disconnect', function(){
 	console.log('disconnected from remote server.');
 });
+
+var regularlyUpdateLatency = true;
+var latencyTimerID;
+
+
+function updateLatencyCalculations() {
+	var localTime = Date.now();
+	remoteServer.emit('get time', localTime);
+	if (regularlyUpdateLatency) {
+		var randomTimeToWaitBeforeCheckingLatencyAgain = 5000;
+		latencyTimerID = setTimeout(updateLatencyCalculations, randomTimeToWaitBeforeCheckingLatencyAgain);
+	}
+}
 
 io.on('connection', function(socket){
 	//console.log('a user connected');

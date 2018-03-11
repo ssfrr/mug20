@@ -22,7 +22,7 @@ io.on('connection', function(socket){
 	});
 });
 
-console.log('pretend I am a remote server.');
+console.log('I am a remote server.');
 http.listen(3100, function(){
 	console.log('listening on *:3100');
 });
