@@ -19,6 +19,7 @@
 		<button id="foodButton" value="off">food is not touched</button>
 	</div>
 	<div id="arpeggio">arpeggio index:</div>
+	<div id="display">know this:</div>
 	<script src="/socket.io/socket.io.js"></script>
 	<script src="scripts/MIDIInstrument.js"></script>
 	<script type="text/javascript">
@@ -33,7 +34,7 @@
 		var buffersAreLoaded = false;
 		var foodHasBeenTouched = false;
 		var timingOffset = 0;
-		var bpm = 120;
+		var bpm = 240;
 		var msPerBeat = 60000.0 / bpm; 
 		
 		var socket = io();
@@ -104,10 +105,7 @@
 			} else {
 				lidButton.value = 'off';
 				lidButton.innerHTML = 'lid is off';
-				var msSinceEpoch = Date.now();
-				var msIntoCurrentBeat = msSinceEpoch % msPerBeat;
-				var timeToNextBeat = msPerBeat - msIntoCurrentBeat;
-				timerID = window.setTimeout(playNextNote, timeToNextBeat);
+				startArpeggio();
 			}
 		}
 		
@@ -177,23 +175,35 @@
 			//piano1.basePitchForRetuning = 0;
 			voice1.connect(gainNode);
 			
-			//for testing only!
-			//or actually, maybe not...250 will be replaced by time to next beat...
-			var msSinceEpoch = Date.now();
-			var msIntoCurrentBeat = msSinceEpoch % msPerBeat;
-			var timeToNextBeat = msPerBeat - msIntoCurrentBeat;
-			timerID = window.setTimeout(playNextNote, timeToNextBeat);
+			startArpeggio();
 		}
 		
 		var arpeggioIndex = 0;
-		var arpeggioAscending = true;
+		var arpeggioMax = 24;
+		//var arpeggioAscending = true;
 		var majorChord = [0, 4, 7];
+		
+		function startArpeggio() {
+			var msSinceEpoch = Date.now();
+			var msIntoCurrentBeat = msSinceEpoch % msPerBeat;
+			var timeToNextBeat = msPerBeat - msIntoCurrentBeat;
+			var msIntoCurrentMeasure = msSinceEpoch % (msPerBeat * arpeggioMax);
+			//this is super silly and unnecessary, but technically the note we are scheduling is the next one, not the current one
+			arpeggioIndex = (Math.floor(msIntoCurrentMeasure / msPerBeat) + 1) % arpeggioMax;
+			timerID = window.setTimeout(playNextNote, timeToNextBeat);
+		}
 		
 		function playNextNote() {
 			var arpLog = document.getElementById("arpeggio");
 			//arpLog.innerHTML = 'arpeggioIndex: ' + arpeggioIndex;
-			var arpeggioScaleDegree = arpeggioIndex % 3;
-			var arpeggioOctave = Math.floor(arpeggioIndex / 3);
+			var foldedArpeggioIndex;
+			if (arpeggioIndex > (arpeggioMax / 2)) {
+				foldedArpeggioIndex = arpeggioMax - arpeggioIndex;
+			} else {
+				foldedArpeggioIndex = arpeggioIndex;
+			}
+			var arpeggioScaleDegree = foldedArpeggioIndex % 3;
+			var arpeggioOctave = Math.floor(foldedArpeggioIndex / 3);
 			var noteToPlay = majorChord[arpeggioScaleDegree] + rootNote + (12 * arpeggioOctave);
 			//randomize which sample you're playing
 			//in the future, imagine an MIDI instrument that has a buffer of samples that it shuffles through
@@ -201,7 +211,7 @@
 			//and you can have a min samples before repeat flag to avoid duplicates
 			//sure, and then have mapping across the keyboard and across different velocities
 			//that's for later
-			arpLog.innerHTML = 'arpeggioIndex: ' + arpeggioIndex + '; noteToPlay: ' + noteToPlay + '; arpeggioOctave: ' + arpeggioOctave;
+			arpLog.innerHTML = 'foldedArpeggioIndex: ' + foldedArpeggioIndex + '; noteToPlay: ' + noteToPlay + '; arpeggioOctave: ' + arpeggioOctave;
 			
 			if (foodHasBeenTouched) {
 				voice1.playNote(0, noteToPlay, 4.0, 1.0, 0.);
@@ -223,16 +233,30 @@
 				}
 			}
 			
+			arpeggioIndex++;
+			if (arpeggioIndex >= arpeggioMax) {
+				arpeggioIndex = 0;
+			}
+			/*
 			if (arpeggioAscending) {
 				arpeggioIndex++;
 			} else {
 				arpeggioIndex--;
 			}
 			if (arpeggioIndex >= 12 || arpeggioIndex <= 0){
-				arpeggioAscending = !arpeggioAscending;
+			arpeggioAscending = !arpeggioAscending;
 			}
+			*/
 			
-			timerID = window.setTimeout(playNextNote, 250);
+			var displayLog = document.getElementById("display");
+			var msSinceEpoch = Date.now();
+			var msIntoCurrentBeat = msSinceEpoch % msPerBeat;
+			var timeToNextBeat = msPerBeat - msIntoCurrentBeat;
+			if (msIntoCurrentBeat > (msPerBeat / 2)) {
+				timeToNextBeat += msPerBeat;
+			}
+			displayLog.innerHTML = "msPerBeat: " + msPerBeat + "; msIntoCurrentBeat: " + msIntoCurrentBeat + "; timeToNextBeat: " + timeToNextBeat;
+			timerID = window.setTimeout(playNextNote, timeToNextBeat);
 		}
 		
 		// create web audio api context

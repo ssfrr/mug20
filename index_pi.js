@@ -30,18 +30,37 @@ app.get(/^(.*)$/, function(req, res){
 });
 
 var rootNote = 60;
+var lastFewTimeStamps = [];
+var timeStampIndex = 0;
 
-//Connect to server
+//Connect to remote server
 var remoteServer = require('socket.io-client')('http://mug20.gustatory.audio:3100');
 remoteServer.on('connect', function(){
 	console.log('connected to remote server at port 3100.');
+	var localTime = Date.now();
+	remoteServer.emit('get time', localTime);
 });
-//remoteServer.on('event', function(data){});
 remoteServer.on('control message', function(msg){
 	rootNote = msg;
 	console.log('new root note: ' + msg);
 });
-//remoteServer.on('disconnect', function(){});
+remoteServer.on('server time', function(msg){
+	var timeStamp = JSON.parse(msg);
+	console.log('originalTime: ' + timeStamp.originalTime + '; serverTime: ' + timeStamp.serverTime);
+	var latency = (timeStamp.serverTime - timeStamp.originalTime) / 2.0;
+	console.log('local time is ' + latency + 'behind server time');
+	lastFewTimeStamps[timeStampIndex] = latency;
+	console.log('lastFewTimeStamps: ' + lastFewTimeStamps);
+	var averageDifference = 0;
+	for (var i = 0; i < lastFewTimeStamps.length; i++) {
+		averageDifference += lastFewTimeStamps[i];
+	}
+	averageDifference = averageDifference / lastFewTimeStamps.length;
+	console.log('average difference: ' + averageDifference);
+});
+remoteServer.on('disconnect', function(){
+	console.log('disconnected from remote server.');
+});
 
 io.on('connection', function(socket){
 	//console.log('a user connected');

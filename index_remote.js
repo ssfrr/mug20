@@ -14,9 +14,10 @@ io.on('connection', function(socket){
 	console.log('a user connected');
 	socket.on('get time', function(msg){
 	  	var timeStamp = Date.now();
-	  	var timeStampMessage = '/timeStamp ' + msg + ':' + timeStamp;
+	  	//var timeStampMessage = '/timeStamp ' + msg + ':' + timeStamp;
+	  	var timeStampMessage = '{ "originalTime" : ' + msg + ', "serverTime" : ' + timeStamp + '}';
 	  	//socket.emit(), not io.emit(), which sends to everybody
-	  	socket.emit('sync message', timeStampMessage);
+	  	socket.emit('server time', timeStampMessage);
 	    //console.log('sync message: ' + timeStampMessage);
 	});
 });
